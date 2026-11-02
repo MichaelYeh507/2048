@@ -1,31 +1,51 @@
+@use "sass:math";
+@use "sass:color";
 @import "helpers";
 @import "fonts/clear-sans.css";
 
 $field-width: 500px;
 $grid-spacing: 15px;
 $grid-row-cells: 4;
-$tile-size: ($field-width - $grid-spacing * ($grid-row-cells + 1)) / $grid-row-cells;
+$tile-size: math.div($field-width - $grid-spacing * ($grid-row-cells + 1), $grid-row-cells);
 $tile-border-radius: 3px;
 
 $mobile-threshold: $field-width + 20px;
 
-$text-color: #776E65;
-$bright-text-color: #f9f6f2;
+// Isometric camera
+$iso-tilt: 58deg;
+$iso-spin: 45deg;
+$iso-scale: 0.68;
+$tile-depth: 26px;   // height of a tile block above the board
+$board-depth: 34px;  // thickness of the stone board slab
 
-$tile-color: #eee4da;
-$tile-gold-color: #edc22e;
-$tile-gold-glow-color: lighten($tile-gold-color, 15%);
+// Hyrule palette
+$text-color: #e8e0c6;          // parchment
+$muted-text-color: #a9b6b1;
+$bright-text-color: #fbf7e8;
+$sky-top: #10202b;
+$sky-bottom: #2b4b47;
+
+$stone-color: #334a52;          // Sheikah slate
+$stone-dark: #1f3036;
+$stone-side: #24383f;
+$cell-color: #3f5a62;
+$sheikah-cyan: #47d6ea;
+$sheikah-glow: #8ff3ff;
+$hyrule-green: #6aa84f;
+$korok-green: #9ccc65;
+$triforce-gold: #e8c14a;
+$guardian-orange: #ff8a3d;
+$malice: #c8325a;
 
 $game-container-margin-top: 40px;
-$game-container-background: #bbada0;
-
 $transition-speed: 100ms;
 
 html, body {
   margin: 0;
   padding: 0;
 
-  background: #faf8ef;
+  background: $sky-top;
+  background: radial-gradient(ellipse at top, #244c5a 0%, $sky-top 55%, #0b151c 100%) fixed;
   color: $text-color;
   font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif;
   font-size: 18px;
@@ -45,6 +65,9 @@ h1.title {
   margin: 0;
   display: block;
   float: left;
+  color: $bright-text-color;
+  letter-spacing: 2px;
+  text-shadow: 0 0 18px rgba($sheikah-cyan, .55), 0 2px 0 $stone-dark;
 }
 
 @include keyframes(move-up) {
@@ -69,14 +92,16 @@ h1.title {
 
   position: relative;
   display: inline-block;
-  background: $game-container-background;
+  background: $stone-color;
+  border: 1px solid rgba($sheikah-cyan, .35);
+  box-shadow: inset 0 0 12px rgba($sheikah-cyan, .12);
   padding: 15px 25px;
   font-size: $height;
   height: $height;
   line-height: $height + 22px;
   font-weight: bold;
   border-radius: 3px;
-  color: white;
+  color: $bright-text-color;
   margin-top: 8px;
   text-align: center;
 
@@ -89,17 +114,17 @@ h1.title {
     font-size: 13px;
     line-height: 13px;
     text-align: center;
-    color: $tile-color;
+    color: $sheikah-cyan;
+    letter-spacing: 1px;
   }
 
   .score-addition {
     position: absolute;
     right: 30px;
-    color: red;
     font-size: $height;
     line-height: $height;
     font-weight: bold;
-    color: rgba($text-color, .9);
+    color: $triforce-gold;
     z-index: 100;
     @include animation(move-up 600ms ease-in);
     @include animation-fill-mode(both);
@@ -121,7 +146,7 @@ p {
 }
 
 a {
-  color: $text-color;
+  color: $sheikah-cyan;
   font-weight: bold;
   text-decoration: underline;
   cursor: pointer;
@@ -130,12 +155,13 @@ a {
 strong {
   &.important {
     text-transform: uppercase;
+    color: $triforce-gold;
   }
 }
 
 hr {
   border: none;
-  border-bottom: 1px solid lighten($text-color, 40%);
+  border-bottom: 1px solid rgba($sheikah-cyan, .25);
   margin-top: 20px;
   margin-bottom: 30px;
 }
@@ -158,21 +184,31 @@ hr {
 // Styles for buttons
 @mixin button {
   display: inline-block;
-  background: darken($game-container-background, 20%);
+  background: $stone-dark;
+  border: 1px solid $sheikah-cyan;
+  box-shadow: 0 0 10px rgba($sheikah-cyan, .35), inset 0 0 8px rgba($sheikah-cyan, .2);
   border-radius: 3px;
   padding: 0 20px;
   text-decoration: none;
-  color: $bright-text-color;
+  color: $sheikah-glow;
   height: 40px;
-  line-height: 42px;
+  line-height: 40px;
+  box-sizing: border-box;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 15px;
+
+  &:hover {
+    background: color.adjust($stone-dark, $lightness: 6%);
+  }
 }
 
 // Game field mixin used to render CSS at different width
-@mixin game-field {
+@mixin game-field($stage-height) {
+  // The stage: flat, untransformed. Receives touch input and hosts the overlay.
   .game-container {
     margin-top: $game-container-margin-top;
     position: relative;
-    padding: $grid-spacing;
 
     cursor: default;
     -webkit-touch-callout: none;
@@ -185,13 +221,14 @@ hr {
     -ms-touch-action: none;
     touch-action: none;
 
-    background: $game-container-background;
-    border-radius: $tile-border-radius * 2;
     width: $field-width;
-    height: $field-width;
+    height: $stage-height;
     -webkit-box-sizing: border-box;
     -moz-box-sizing: border-box;
     box-sizing: border-box;
+
+    perspective: 1400px;
+    perspective-origin: 50% 30%;
 
     .game-message {
       display: none;
@@ -201,7 +238,8 @@ hr {
       right: 0;
       bottom: 0;
       left: 0;
-      background: rgba($tile-color, .5);
+      background: rgba($sky-top, .72);
+      border-radius: 6px;
       z-index: 100;
 
       text-align: center;
@@ -211,36 +249,34 @@ hr {
         font-weight: bold;
         height: 60px;
         line-height: 60px;
-        margin-top: 222px;
-        // height: $field-width;
-        // line-height: $field-width;
+        margin-top: math.div($stage-height, 2) - 60px;
+        color: $bright-text-color;
+        text-shadow: 0 0 20px rgba($sheikah-cyan, .7);
       }
 
       .lower {
         display: block;
-        margin-top: 59px;
+        margin-top: 40px;
       }
 
       a {
         @include button;
         margin-left: 9px;
-        // margin-top: 59px;
 
-	&.keep-playing-button {
-	  display: none;
-	}
+        &.keep-playing-button {
+          display: none;
+        }
       }
 
       @include animation(fade-in 800ms ease $transition-speed * 12);
       @include animation-fill-mode(both);
 
       &.game-won {
-        background: rgba($tile-gold-color, .5);
-        color: $bright-text-color;
+        background: rgba(color.adjust($triforce-gold, $lightness: -35%), .72);
 
-	a.keep-playing-button {
-	  display: inline-block;
-	}
+        a.keep-playing-button {
+          display: inline-block;
+        }
       }
 
       &.game-won, &.game-over {
@@ -249,9 +285,65 @@ hr {
     }
   }
 
+  // The stone slab, tilted and spun into an isometric view
+  .board {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: $field-width;
+    height: $field-width;
+    margin-left: math.div(-$field-width, 2);
+    margin-top: math.div(-$field-width, 2) - math.div($stage-height, 12);
+    padding: $grid-spacing;
+    box-sizing: border-box;
+
+    background: $stone-color;
+    background-image:
+      linear-gradient(135deg, rgba(white, .06) 0%, rgba(white, 0) 40%, rgba(black, .12) 100%);
+    border-radius: $tile-border-radius * 2;
+    box-shadow: inset 0 0 0 2px rgba($sheikah-cyan, .18);
+
+    -webkit-transform-style: preserve-3d;
+    transform-style: preserve-3d;
+    @include transform(rotateX($iso-tilt) rotateZ($iso-spin) scale($iso-scale));
+
+    // Slab side faces (the +x and +y faces are the ones the camera sees)
+    &:before, &:after {
+      content: "";
+      position: absolute;
+      background: $stone-side;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+    }
+
+    // Right face
+    &:before {
+      top: 0;
+      left: 100%;
+      width: $board-depth;
+      height: 100%;
+      transform-origin: left center;
+      background: color.adjust($stone-side, $lightness: -4%);
+      @include transform(rotateY(90deg));
+    }
+
+    // Front (bottom) face
+    &:after {
+      top: 100%;
+      left: 0;
+      width: 100%;
+      height: $board-depth;
+      transform-origin: center top;
+      background: color.adjust($stone-side, $lightness: -9%);
+      @include transform(rotateX(-90deg));
+    }
+  }
+
   .grid-container {
     position: absolute;
     z-index: 1;
+    -webkit-transform-style: preserve-3d;
+    transform-style: preserve-3d;
   }
 
   .grid-row {
@@ -276,7 +368,9 @@ hr {
 
     border-radius: $tile-border-radius;
 
-    background: rgba($tile-color, .35);
+    background: $cell-color;
+    box-shadow: inset 0 0 0 1px rgba($sheikah-cyan, .14),
+                inset 0 0 18px rgba(black, .25);
 
     &:last-child {
       margin-right: 0;
@@ -286,21 +380,66 @@ hr {
   .tile-container {
     position: absolute;
     z-index: 2;
+    -webkit-transform-style: preserve-3d;
+    transform-style: preserve-3d;
+  }
+
+  // Direction indicators: signposts standing at each board edge
+  $arrow-size: math.div($field-width, 6);
+  $arrow-gap: $grid-spacing * 2.5;
+
+  .dir-arrows {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    -webkit-transform-style: preserve-3d;
+    transform-style: preserve-3d;
+  }
+
+  .dir-arrow {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    width: $arrow-size;
+    height: $arrow-size;
+
+    &.dir-up    { top: -$arrow-size - $arrow-gap; left: 50%; margin-left: math.div(-$arrow-size, 2); }
+    &.dir-down  { bottom: -$arrow-size - $arrow-gap; left: 50%; margin-left: math.div(-$arrow-size, 2); }
+    &.dir-left  { left: -$arrow-size - $arrow-gap; top: 50%; margin-top: math.div(-$arrow-size, 2); }
+    &.dir-right { right: -$arrow-size - $arrow-gap; top: 50%; margin-top: math.div(-$arrow-size, 2); }
+  }
+
+  .dir-key {
+    width: math.div($arrow-size, 1.7);
+    height: math.div($arrow-size, 2.1);
+    line-height: math.div($arrow-size, 2.1) - 4px;
+    font-size: math.div($arrow-size, 3.4);
+  }
+
+  .dir-chevron {
+    font-size: math.div($arrow-size, 2.2);
+    line-height: 1;
+    margin: math.div($arrow-size, 14) 0 math.div($arrow-size, 10);
   }
 
   .tile {
     &, .tile-inner {
-      width: ceil($tile-size);
-      height: ceil($tile-size);
-      line-height: ceil($tile-size);
+      width: math.ceil($tile-size);
+      height: math.ceil($tile-size);
+      line-height: math.ceil($tile-size);
     }
 
     // Build position classes
     @for $x from 1 through $grid-row-cells {
       @for $y from 1 through $grid-row-cells {
         &.tile-position-#{$x}-#{$y} {
-          $xPos: floor(($tile-size + $grid-spacing) * ($x - 1));
-          $yPos: floor(($tile-size + $grid-spacing) * ($y - 1));
+          $xPos: math.floor(($tile-size + $grid-spacing) * ($x - 1));
+          $yPos: math.floor(($tile-size + $grid-spacing) * ($y - 1));
           @include transform(translate($xPos, $yPos));
         }
       }
@@ -309,20 +448,82 @@ hr {
 }
 
 // End of game-field mixin
-@include game-field;
+@include game-field(440px);
+
+// Tile block: .tile-inner is the top face, raised by $tile-depth;
+// its pseudo-elements are the two visible side faces.
+@mixin tile-faces($top, $depth) {
+  background: $top;
+
+  &:before {
+    background: color.adjust($top, $lightness: -14%, $saturation: -6%);
+  }
+
+  &:after {
+    background: color.adjust($top, $lightness: -24%, $saturation: -8%);
+  }
+}
 
 .tile {
   position: absolute; // Makes transforms relative to the top-left corner
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
 
   .tile-inner {
+    position: relative;
     border-radius: $tile-border-radius;
+    -webkit-transform-style: preserve-3d;
+    transform-style: preserve-3d;
+    @include transform(translateZ($tile-depth));
 
-    background: $tile-color;
     text-align: center;
     font-weight: bold;
-    z-index: 10;
-
     font-size: 55px;
+    color: $bright-text-color;
+
+    &:before, &:after {
+      content: "";
+      position: absolute;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+    }
+
+    // Right face
+    &:before {
+      top: 0;
+      left: 100%;
+      width: $tile-depth;
+      height: 100%;
+      transform-origin: left center;
+      @include transform(rotateY(90deg));
+    }
+
+    // Front (bottom) face
+    &:after {
+      top: 100%;
+      left: 0;
+      width: 100%;
+      height: $tile-depth;
+      transform-origin: center top;
+      @include transform(rotateX(-90deg));
+    }
+
+    @include tile-faces(#7f8f8a, $tile-depth);
+  }
+
+  // The number is painted flat on the top face: un-spin it so it reads
+  // horizontally, and stretch it to counter the camera's foreshortening.
+  .tile-label {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    display: block;
+    line-height: inherit;
+    text-shadow: 0 2px 2px rgba(black, .35);
+    @include transform(rotateZ(-$iso-spin) scaleY(1.6));
+    pointer-events: none;
   }
 
   // Movement transition
@@ -331,65 +532,52 @@ hr {
   -moz-transition-property: -moz-transform;
   transition-property: transform;
 
-  $base: 2;
-  $exponent: 1;
-  $limit: 11;
+  // Tile colors, low to high: stone, moss, Hyrule green, Korok, teal,
+  // Sheikah cyan, ancient blue, gold, amber, Guardian orange, Malice
+  $tile-colors: (
+    2:    #7f8f8a,
+    4:    #6f9a7a,
+    8:    $hyrule-green,
+    16:   $korok-green,
+    32:   #3fb59a,
+    64:   $sheikah-cyan,
+    128:  #3a7fd6,
+    256:  $triforce-gold,
+    512:  #f0a83a,
+    1024: $guardian-orange,
+    2048: $malice
+  );
 
-  // Colors for all 11 states, false = no special color
-  $special-colors: false false, // 2
-                   false false, // 4
-                   #f78e48 true, // 8
-                   #fc5e2e true, // 16
-                   #ff3333 true, // 32
-                   #ff0000 true, // 64
-                   false true, // 128
-                   false true, // 256
-                   false true, // 512
-                   false true, // 1024
-                   false true; // 2048
+  @each $value, $top in $tile-colors {
+    &.tile-#{$value} .tile-inner {
+      @include tile-faces($top, $tile-depth);
 
-  // Build tile colors
-  @while $exponent <= $limit {
-    $power: pow($base, $exponent);
+      @if $value == 2 or $value == 4 or $value == 16 {
+        color: $stone-dark;
 
-    &.tile-#{$power} .tile-inner {
-      // Calculate base background color
-      $gold-percent: ($exponent - 1) / ($limit - 1) * 100;
-      $mixed-background: mix($tile-gold-color, $tile-color, $gold-percent);
-
-      $nth-color: nth($special-colors, $exponent);
-
-      $special-background: nth($nth-color, 1);
-      $bright-color: nth($nth-color, 2);
-
-      @if $special-background {
-        $mixed-background: mix($special-background, $mixed-background, 55%);
+        .tile-label {
+          text-shadow: 0 1px 0 rgba(white, .25);
+        }
       }
 
-      @if $bright-color {
-        color: $bright-text-color;
+      @if $value >= 32 {
+        $glow: if($value >= 256, $triforce-gold, $sheikah-glow);
+        box-shadow: 0 0 24px 6px rgba($glow, .35),
+                    inset 0 0 0 1px rgba(white, .25);
       }
 
-      // Set background
-      background: $mixed-background;
-
-      // Add glow
-      $glow-opacity: max($exponent - 4, 0) / ($limit - 4);
-
-      @if not $special-background {
-        box-shadow: 0 0 30px 10px rgba($tile-gold-glow-color, $glow-opacity / 1.8),
-                    inset 0 0 0 1px rgba(white, $glow-opacity / 3);
+      @if $value == 2048 {
+        box-shadow: 0 0 40px 12px rgba($triforce-gold, .7),
+                    inset 0 0 0 2px rgba($triforce-gold, .8);
       }
 
-      // Adjust font size for bigger numbers
-      @if $power >= 100 and $power < 1000 {
+      @if $value >= 100 and $value < 1000 {
         font-size: 45px;
 
-        // Media queries placed here to avoid carrying over the rest of the logic
         @include smaller($mobile-threshold) {
           font-size: 25px;
         }
-      } @else if $power >= 1000 {
+      } @else if $value >= 1000 {
         font-size: 35px;
 
         @include smaller($mobile-threshold) {
@@ -397,14 +585,14 @@ hr {
         }
       }
     }
-
-    $exponent: $exponent + 1;
   }
 
   // Super tiles (above 2048)
   &.tile-super .tile-inner {
     color: $bright-text-color;
-    background: mix(#333, $tile-gold-color, 95%);
+    @include tile-faces(#2b1a3a, $tile-depth);
+    box-shadow: 0 0 40px 12px rgba($malice, .7),
+                inset 0 0 0 2px rgba($malice, .9);
 
     font-size: 30px;
 
@@ -414,15 +602,96 @@ hr {
   }
 }
 
+// Direction indicator look and animation.
+// Each signpost is un-spun and un-tilted so it stands upright facing the
+// camera; its chevron therefore points in SCREEN space, the way tiles move.
+.dir-arrow {
+  transform-origin: 50% 100%;
+  @include transform(rotateZ(-$iso-spin) rotateX(-$iso-tilt));
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+}
+
+.dir-key {
+  display: block;
+  text-align: center;
+  font-weight: bold;
+  color: $sheikah-glow;
+  background: $stone-dark;
+  border: 2px solid rgba($sheikah-cyan, .75);
+  border-radius: 6px;
+  box-sizing: border-box;
+  box-shadow: 0 0 12px rgba($sheikah-cyan, .35);
+  @include transition(all 150ms ease);
+}
+
+.dir-chevron {
+  display: block;
+  color: rgba($sheikah-cyan, .95);
+  font-weight: bold;
+  text-shadow: 0 0 8px rgba($sheikah-cyan, .6);
+  font-family: "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols", sans-serif;
+}
+
+// Idle nudge: the arrow points along its screen direction and drifts that
+// way, then settles back. The glyph points right, so up-right is -45deg.
+@mixin nudge($name, $angle, $x, $y) {
+  @include keyframes($name) {
+    0%   { @include transform(translate(0, 0) rotate($angle)); opacity: .5; }
+    60%  { @include transform(translate($x, $y) rotate($angle)); opacity: 1; }
+    100% { @include transform(translate(0, 0) rotate($angle)); opacity: .5; }
+  }
+}
+
+@include nudge(nudge-up,    -45deg,   8px, -8px);
+@include nudge(nudge-right,  45deg,   8px,  8px);
+@include nudge(nudge-down,   135deg, -8px,  8px);
+@include nudge(nudge-left,  -135deg, -8px, -8px);
+
+.dir-up    .dir-chevron { @include transform(rotate(-45deg));  @include animation(nudge-up 1.6s ease-in-out infinite); }
+.dir-right .dir-chevron { @include transform(rotate(45deg));   @include animation(nudge-right 1.6s ease-in-out infinite .4s); }
+.dir-down  .dir-chevron { @include transform(rotate(135deg));  @include animation(nudge-down 1.6s ease-in-out infinite .8s); }
+.dir-left  .dir-chevron { @include transform(rotate(-135deg)); @include animation(nudge-left 1.6s ease-in-out infinite 1.2s); }
+
+// Flash when that direction is played: the chevron shoots along its
+// direction and the keycap lights up.
+@mixin flash($name, $angle, $x, $y) {
+  @include keyframes($name) {
+    0%   { @include transform(translate(0, 0) rotate($angle) scale(1)); opacity: 1; color: $bright-text-color; }
+    50%  { @include transform(translate($x, $y) rotate($angle) scale(1.5)); opacity: 1; color: $bright-text-color; }
+    100% { @include transform(translate(0, 0) rotate($angle) scale(1)); opacity: .5; color: rgba($sheikah-cyan, .95); }
+  }
+}
+
+@include flash(flash-up,    -45deg,   16px, -16px);
+@include flash(flash-right,  45deg,   16px,  16px);
+@include flash(flash-down,   135deg, -16px,  16px);
+@include flash(flash-left,  -135deg, -16px, -16px);
+
+.dir-arrow.active {
+  &.dir-up    .dir-chevron { @include animation(flash-up 450ms ease-out); }
+  &.dir-right .dir-chevron { @include animation(flash-right 450ms ease-out); }
+  &.dir-down  .dir-chevron { @include animation(flash-down 450ms ease-out); }
+  &.dir-left  .dir-chevron { @include animation(flash-left 450ms ease-out); }
+
+  .dir-key {
+    color: $stone-dark;
+    background: $sheikah-glow;
+    border-color: $bright-text-color;
+    box-shadow: 0 0 24px rgba($sheikah-glow, .9);
+    @include transform(scale(1.12));
+  }
+}
+
 @include keyframes(appear) {
   0% {
     opacity: 0;
-    @include transform(scale(0));
+    @include transform(translateZ(-$tile-depth) scale(0.3));
   }
 
   100% {
     opacity: 1;
-    @include transform(scale(1));
+    @include transform(translateZ($tile-depth) scale(1));
   }
 }
 
@@ -433,20 +702,19 @@ hr {
 
 @include keyframes(pop) {
   0% {
-    @include transform(scale(0));
+    @include transform(translateZ($tile-depth) scale(0));
   }
 
   50% {
-    @include transform(scale(1.2));
+    @include transform(translateZ($tile-depth * 2) scale(1.15));
   }
 
   100% {
-    @include transform(scale(1));
+    @include transform(translateZ($tile-depth) scale(1));
   }
 }
 
 .tile-merged .tile-inner {
-  z-index: 20;
   @include animation(pop 200ms ease $transition-speed);
   @include animation-fill-mode(backwards);
 }
@@ -470,6 +738,7 @@ hr {
 
 .game-explanation {
   margin-top: 50px;
+  color: $muted-text-color;
 }
 
 @include smaller($mobile-threshold) {
@@ -477,7 +746,7 @@ hr {
   $field-width: 280px;
   $grid-spacing: 10px;
   $grid-row-cells: 4;
-  $tile-size: ($field-width - $grid-spacing * ($grid-row-cells + 1)) / $grid-row-cells;
+  $tile-size: math.div($field-width - $grid-spacing * ($grid-row-cells + 1), $grid-row-cells);
   $tile-border-radius: 3px;
   $game-container-margin-top: 17px;
 
@@ -527,7 +796,7 @@ hr {
   }
 
   // Render the game field at the right width
-  @include game-field;
+  @include game-field(260px);
 
   // Rest of the font-size adjustments in the tile class
   .tile .tile-inner {
@@ -539,7 +808,7 @@ hr {
       font-size: 30px !important;
       height: 30px !important;
       line-height: 30px !important;
-      margin-top: 90px !important;
+      margin-top: 70px !important;
     }
 
     .lower {

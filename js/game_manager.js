@@ -7,6 +7,9 @@ function GameManager(size, InputManager, Actuator, StorageManager) {
   this.startTiles     = 2;
 
   this.inputManager.on("move", this.move.bind(this));
+  if (this.actuator.flashDirection) {
+    this.inputManager.on("move", this.actuator.flashDirection.bind(this.actuator));
+  }
   this.inputManager.on("restart", this.restart.bind(this));
   this.inputManager.on("keepPlaying", this.keepPlaying.bind(this));
 

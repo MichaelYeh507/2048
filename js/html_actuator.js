@@ -3,9 +3,27 @@ function HTMLActuator() {
   this.scoreContainer   = document.querySelector(".score-container");
   this.bestContainer    = document.querySelector(".best-container");
   this.messageContainer = document.querySelector(".game-message");
+  this.dirArrows        = document.querySelectorAll(".dir-arrow");
 
   this.score = 0;
 }
+
+// Light up the on-board indicator for the direction that was just played
+// 0: up, 1: right, 2: down, 3: left
+HTMLActuator.prototype.flashDirection = function (direction) {
+  var names = ["dir-up", "dir-right", "dir-down", "dir-left"];
+  var arrow = document.querySelector(".dir-arrow." + names[direction]);
+  if (!arrow) return;
+
+  arrow.classList.remove("active");
+  void arrow.offsetWidth; // restart the animation if it is already running
+  arrow.classList.add("active");
+
+  clearTimeout(arrow.flashTimer);
+  arrow.flashTimer = setTimeout(function () {
+    arrow.classList.remove("active");
+  }, 450);
+};
 
 HTMLActuator.prototype.actuate = function (grid, metadata) {
   var self = this;
@@ -62,7 +80,12 @@ HTMLActuator.prototype.addTile = function (tile) {
   this.applyClasses(wrapper, classes);
 
   inner.classList.add("tile-inner");
-  inner.textContent = tile.value;
+
+  // Label is a separate element so it can be billboarded toward the camera
+  var label = document.createElement("span");
+  label.classList.add("tile-label");
+  label.textContent = tile.value;
+  inner.appendChild(label);
 
   if (tile.previousPosition) {
     // Make sure that the tile gets rendered in the previous position first
